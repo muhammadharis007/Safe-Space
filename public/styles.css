@@ -92,6 +92,16 @@ body {
 
 .message.system .content {
   font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.message.system .timestamp {
+  color: #666;
+  font-size: 0.8rem;
+  font-style: normal;
 }
 
 .message.system.join .content {

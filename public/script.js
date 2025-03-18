@@ -34,11 +34,6 @@ function setUsername() {
   username = input.value.trim() || "Anonymous";
   document.querySelector(".modal-overlay").remove();
   connectWebSocket();
-
-  // Send initial message with username
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ username: username }));
-  }
 }
 
 function connectWebSocket() {
@@ -55,6 +50,8 @@ function connectWebSocket() {
 
   ws.onopen = function () {
     console.log("WebSocket connected");
+    // Send username immediately when connection is established
+    ws.send(JSON.stringify({ username: username }));
   };
 
   ws.onmessage = function (event) {
@@ -62,14 +59,20 @@ function connectWebSocket() {
     const messagesDiv = document.getElementById("messages");
 
     if (data.type === "history") {
-      // Clear existing dummy messages
+      // Clear existing messages
       messagesDiv.innerHTML = "";
-      // Add historical messages
+      postCount = 0;
+
+      // Add all historical messages in order
       data.messages.forEach((msg) => {
-        postCount++;
-        messagesDiv.appendChild(
-          createMessage(msg.username, msg.message, postCount)
-        );
+        if (msg.type === "message") {
+          postCount++;
+          messagesDiv.appendChild(
+            createMessage(msg.data.username, msg.data.message, postCount)
+          );
+        } else if (msg.type === "system") {
+          messagesDiv.appendChild(createSystemMessage(msg));
+        }
       });
     } else if (data.type === "message") {
       postCount++;
@@ -77,8 +80,7 @@ function connectWebSocket() {
         createMessage(data.data.username, data.data.message, postCount)
       );
     } else if (data.type === "system") {
-      const message = createSystemMessage(data);
-      messagesDiv.appendChild(message);
+      messagesDiv.appendChild(createSystemMessage(data));
     }
 
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -94,12 +96,23 @@ function createSystemMessage(data) {
   const messageDiv = document.createElement("div");
   messageDiv.className = `message system ${data.systemType}`;
 
-  let messageText =
+  const messageText =
     data.systemType === "join"
       ? `${data.username} has joined the chat.`
       : `${data.username} has left the chat.`;
 
-  messageDiv.innerHTML = `<div class="content">${messageText}</div>`;
+  const timestamp = data.timestamp
+    ? new Date(data.timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : formatTimestamp();
+
+  messageDiv.innerHTML = `
+    <div class="content">
+      <span class="timestamp">${timestamp}</span>
+      ${messageText}
+    </div>`;
   return messageDiv;
 }
 

@@ -31,6 +31,22 @@ let messageHistory = []; // Store message history
 const MAX_HISTORY = 100; // Keep last 100 messages
 let activeUsers = new Map(); // Track active users
 
+function broadcast(data) {
+  // Store all types of messages in history
+  if (data.type === "message" || data.type === "system") {
+    messageHistory.push(data);
+    if (messageHistory.length > MAX_HISTORY) {
+      messageHistory.shift();
+    }
+  }
+
+  connections.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
+
 wss.on("connection", (ws) => {
   let userInfo = null;
 
@@ -39,7 +55,7 @@ wss.on("connection", (ws) => {
     ws.send(
       JSON.stringify({
         type: "history",
-        messages: messageHistory,
+        messages: messageHistory, // Now includes both chat and system messages
       })
     );
   }
@@ -53,33 +69,35 @@ wss.on("connection", (ws) => {
       activeUsers.set(ws, userInfo);
 
       // Broadcast join message
-      const joinMsg = {
+      broadcast({
         type: "system",
         systemType: "join",
         username: data.username,
-      };
-      broadcast(joinMsg);
+        timestamp: new Date().toISOString(), // Add timestamp for consistency
+      });
     }
 
     if (data.message) {
       // Regular chat message
-      messageHistory.push(data);
-      if (messageHistory.length > MAX_HISTORY) {
-        messageHistory.shift(); // Remove oldest message if limit reached
-      }
-      broadcast({ type: "message", data: data });
+      broadcast({
+        type: "message",
+        data: {
+          username: data.username,
+          message: data.message,
+          timestamp: new Date().toISOString(),
+        },
+      });
     }
   });
 
   ws.on("close", () => {
     if (userInfo) {
-      // Broadcast leave message
-      const leaveMsg = {
+      broadcast({
         type: "system",
         systemType: "leave",
         username: userInfo.username,
-      };
-      broadcast(leaveMsg);
+        timestamp: new Date().toISOString(),
+      });
       activeUsers.delete(ws);
     }
     connections.delete(ws);
@@ -87,14 +105,6 @@ wss.on("connection", (ws) => {
 
   connections.add(ws);
 });
-
-function broadcast(data) {
-  connections.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
-    }
-  });
-}
 
 // Update port configuration for Railway
 const PORT = process.env.PORT || 3002;
