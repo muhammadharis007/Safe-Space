@@ -2,11 +2,39 @@ let postCount = 0;
 let username = "";
 let ws;
 
-// Get username when page loads
+// Replace window.onload with new modal implementation
 window.onload = function () {
-  username = prompt("Please enter your username:") || "Anonymous";
-  connectWebSocket();
+  showUsernameModal();
 };
+
+function showUsernameModal() {
+  const modal = document.createElement("div");
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+        <div class="modal">
+            <h2>Welcome to Safe Space</h2>
+            <input type="text" id="username-input" 
+                   placeholder="Enter your username" 
+                   maxlength="20"
+                   autocomplete="off">
+            <button onclick="setUsername()">Join Chat</button>
+        </div>
+    `;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector("#username-input");
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") setUsername();
+  });
+  input.focus();
+}
+
+function setUsername() {
+  const input = document.getElementById("username-input");
+  username = input.value.trim() || "Anonymous";
+  document.querySelector(".modal-overlay").remove();
+  connectWebSocket();
+}
 
 function connectWebSocket() {
   // Simplified WebSocket URL logic
@@ -59,16 +87,26 @@ function formatTimestamp() {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+// Update createMessage for better message formatting
 function createMessage(user, text, count) {
   const messageDiv = document.createElement("div");
   messageDiv.className = "message";
+
+  // Sanitize input
+  const sanitizedUser = user.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const sanitizedText = text
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>")
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+
   messageDiv.innerHTML = `
         <div class="header">
-            <span class="name">${user}</span>
+            <span class="name">${sanitizedUser}</span>
             <span class="timestamp">${formatTimestamp()}</span>
             <span class="number">No.${count}</span>
         </div>
-        <div class="content">${text}</div>
+        <div class="content">${sanitizedText}</div>
     `;
   return messageDiv;
 }
