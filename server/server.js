@@ -5,7 +5,18 @@ const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+
+// Update WebSocket server configuration
+const wss = new WebSocket.Server({
+  server,
+  path: "/",
+  clientTracking: true,
+});
+
+// Add error handling for WebSocket server
+wss.on("error", function (error) {
+  console.error("WebSocket Server Error:", error);
+});
 
 // Serve static files correctly
 app.use(express.static(path.join(__dirname, "../public")));
@@ -59,7 +70,10 @@ wss.on("connection", (ws) => {
   });
 });
 
+// Update port configuration for Railway
 const PORT = process.env.PORT || 3002;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const HOST = process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost";
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on ${HOST}:${PORT}`);
 });

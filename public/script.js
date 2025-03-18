@@ -9,14 +9,20 @@ window.onload = function () {
 };
 
 function connectWebSocket() {
-  // Make WebSocket URL dynamic for both local and production
+  // Simplified WebSocket URL logic
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl =
-    process.env.NODE_ENV === "production"
-      ? `${protocol}//${window.location.host}`
-      : `${protocol}//${window.location.hostname}:3002`;
+  const wsUrl = `${protocol}//${window.location.host}`;
 
   ws = new WebSocket(wsUrl);
+
+  // Add connection error handling
+  ws.onerror = function (err) {
+    console.error("WebSocket error:", err);
+  };
+
+  ws.onopen = function () {
+    console.log("WebSocket connected");
+  };
 
   ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
@@ -71,14 +77,21 @@ function sendMessage() {
   const messageInput = document.getElementById("message");
   if (!messageInput.value) return;
 
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(
-      JSON.stringify({
-        username: username,
-        message: messageInput.value,
-      })
-    );
+  // Add connection check
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    console.log("Reconnecting...");
+    connectWebSocket();
+    // Queue the message to be sent after connection
+    setTimeout(() => sendMessage(), 1000);
+    return;
   }
+
+  ws.send(
+    JSON.stringify({
+      username: username,
+      message: messageInput.value,
+    })
+  );
 
   messageInput.value = "";
 }
