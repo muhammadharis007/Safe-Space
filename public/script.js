@@ -34,6 +34,11 @@ function setUsername() {
   username = input.value.trim() || "Anonymous";
   document.querySelector(".modal-overlay").remove();
   connectWebSocket();
+
+  // Send initial message with username
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ username: username }));
+  }
 }
 
 function connectWebSocket() {
@@ -71,6 +76,9 @@ function connectWebSocket() {
       messagesDiv.appendChild(
         createMessage(data.data.username, data.data.message, postCount)
       );
+    } else if (data.type === "system") {
+      const message = createSystemMessage(data);
+      messagesDiv.appendChild(message);
     }
 
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -80,6 +88,19 @@ function connectWebSocket() {
     // Try to reconnect in 5 seconds
     setTimeout(connectWebSocket, 5000);
   };
+}
+
+function createSystemMessage(data) {
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `message system ${data.systemType}`;
+
+  let messageText =
+    data.systemType === "join"
+      ? `${data.username} has joined the chat.`
+      : `${data.username} has left the chat.`;
+
+  messageDiv.innerHTML = `<div class="content">${messageText}</div>`;
+  return messageDiv;
 }
 
 function formatTimestamp() {

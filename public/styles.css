@@ -81,6 +81,27 @@ body {
   font-size: 0.8rem;
 }
 
+/* System Messages */
+.message.system {
+  background: transparent;
+  box-shadow: none;
+  max-width: 100%;
+  text-align: center;
+  padding: 0.4rem;
+}
+
+.message.system .content {
+  font-style: italic;
+}
+
+.message.system.join .content {
+  color: #27ae60;
+}
+
+.message.system.leave .content {
+  color: #c0392b;
+}
+
 .input-area {
   padding: 1rem;
   display: flex;

@@ -29,9 +29,10 @@ app.get("*", (req, res) => {
 let connections = new Set();
 let messageHistory = []; // Store message history
 const MAX_HISTORY = 100; // Keep last 100 messages
+let activeUsers = new Map(); // Track active users
 
 wss.on("connection", (ws) => {
-  connections.add(ws);
+  let userInfo = null;
 
   // Send message history to new connection
   if (messageHistory.length > 0) {
@@ -46,29 +47,54 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const data = JSON.parse(message);
 
-    // Store message in history
-    messageHistory.push(data);
-    if (messageHistory.length > MAX_HISTORY) {
-      messageHistory.shift(); // Remove oldest message if limit reached
+    // Handle initial user connection
+    if (!userInfo && data.username) {
+      userInfo = { username: data.username };
+      activeUsers.set(ws, userInfo);
+
+      // Broadcast join message
+      const joinMsg = {
+        type: "system",
+        systemType: "join",
+        username: data.username,
+      };
+      broadcast(joinMsg);
     }
 
-    // Broadcast to all clients
-    connections.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(
-          JSON.stringify({
-            type: "message",
-            data: data,
-          })
-        );
+    if (data.message) {
+      // Regular chat message
+      messageHistory.push(data);
+      if (messageHistory.length > MAX_HISTORY) {
+        messageHistory.shift(); // Remove oldest message if limit reached
       }
-    });
+      broadcast({ type: "message", data: data });
+    }
   });
 
   ws.on("close", () => {
+    if (userInfo) {
+      // Broadcast leave message
+      const leaveMsg = {
+        type: "system",
+        systemType: "leave",
+        username: userInfo.username,
+      };
+      broadcast(leaveMsg);
+      activeUsers.delete(ws);
+    }
     connections.delete(ws);
   });
+
+  connections.add(ws);
 });
+
+function broadcast(data) {
+  connections.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
 
 // Update port configuration for Railway
 const PORT = process.env.PORT || 3002;
